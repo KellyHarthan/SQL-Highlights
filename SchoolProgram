@@ -1,0 +1,71 @@
+/*QUESTION 1. Two foods that are favorites of children are pizza and hamburgers. Which of these things do children write about more often? 
+Which do they have the most to say about when they do? Return the **total** number of poems, their **average character count** for
+poems that mention **pizza** and poems that mention the word **hamburger**. Do this in a single query.*/
+
+(SELECT 
+ 	'Hamburger' as fav_food,
+ 	COUNT(title)as total_poems,
+ 	ROUND(AVG(char_count::numeric),2)as avg_words
+FROM poem
+WHERE text ILIKE '%hamburger%' OR title ILIKE '%hamburger%')
+UNION
+(SELECT 
+ 	'Pizza' as fav_food,
+ 	COUNT(title)as total_poems,
+ 	ROUND(AVG(char_count::numeric),2)as avg_words
+FROM poem
+WHERE text ILIKE '%pizza%' OR title ILIKE '%pizza%')
+
+-- Working to reduce code
+SELECT COUNT(CASE WHEN (text ILIKE '%pizza%' or title ILIKE '%pizza%') THEN id END) AS pizza_cuunt,
+		ROUND(AVG (CASE WHEN (text ILIKE '%pizza%' or title ILIKE '%pizza%') THEN char_count END),2) as avg_char_hamburger,
+		COUNT(CASE WHEN (text ILIKE '%hamburger%' or title ILIKE '%hamburger%') THEN id END) AS pizza_cuunt,
+		ROUND(AVG (CASE WHEN (text ILIKE '%hamburger%' or title ILIKE '%hamburger%') THEN char_count END),2) as avg_char_hamburger
+FROM  poem
+
+------------------------------------------------------------------------------------------------------------------
+
+/*QUESTION 2: Do longer poems have more emotional intensity compared to shorter poems?  No, they are almost exactly identical. See part B 
+a. Start by writing a query to return each emotion in the database with its average intensity and character count. */
+--     - Which emotion is associated the longest poems on average?  ANGER
+--     - Which emotion has the shortest? JOY
+
+SELECT emo.name as emotion, 
+	   ROUND(AVG(char_count),2) as avg_char_count, 
+	   ROUND(AVG(intensity_percent),2)as avg_intensity_percent
+FROM poem_emotion FULL JOIN poem ON poem.id=poem_emotion.poem_id
+				INNER JOIN emotion as emo ON emo.id=poem_emotion.emotion_id
+GROUP BY emotion
+ORDER BY avg_char_count
+
+/*b. Convert the query you wrote in part a into a CTE. Then find the 5 most intense poems that express anger and whether they 
+are to be longer or shorter than the average angry poem.*/	--SHORTER!	
+-- -  What is the most angry poem about? A dancing horse or the heat of summer. They are tied in intensity
+-- -  Do you think these are all classified correctly? No, looking though the text some of these would fit better into other emotional catagories.
+	
+With emotion_stats as
+		(SELECT 
+		 	   title,
+		 	   emo.name as emotion,
+		 	   intensity_percent,
+			   char_count,
+			   text
+		FROM poem_emotion FULL JOIN poem ON poem.id=poem_emotion.poem_id
+						INNER JOIN emotion as emo ON emo.id=poem_emotion.emotion_id
+		WHERE emo.name= 'Anger')
+SELECT title,
+	   char_count,
+	   intensity_percent, 
+	   emotion, 
+	   CASE WHEN char_count<=ROUND(AVG(char_count),2) THEN 'shorter'
+			WHEN char_count>ROUND(AVG(char_count),2) THEN 'longer'
+			ELSE 'ERROR' END as poem_length_vs_avg,
+	   text
+FROM emotion_stats
+GROUP BY title,char_count,intensity_percent, emotion, text
+ORDER BY intensity_percent DESC
+LIMIT 5
+
+
+
+
